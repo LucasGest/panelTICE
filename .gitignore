@@ -1,0 +1,8 @@
+node_modules/
+.firebase/
+.vercel/
+.DS_Store
+*.log
+.env
+.env.local
+js/firebase-config.js

@@ -1,0 +1,47 @@
+rules_version = '2';
+// Règles de sécurité du Panel TICE.
+// - Les enseignants (non connectés) peuvent CRÉER un signalement, et lire UN signalement s'ils ont son code.
+// - Tout le reste (parc, journal, chantiers, liste des signalements, modifications) est réservé
+//   aux comptes dont l'UID figure dans la collection « admins ».
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+
+    function validPublicTicket() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['nom','salle','poste','categorie','urgence','description','statut','reponse','createdAt','updatedAt'])
+        && d.keys().hasAll(['salle','categorie','urgence','description','statut','createdAt'])
+        && str(d.get('nom', ''), 0, 80)
+        && str(d.salle, 1, 40)
+        && str(d.get('poste', ''), 0, 60)
+        && str(d.categorie, 1, 60)
+        && d.urgence in ['faible', 'normale', 'urgente']
+        && str(d.description, 5, 2000)
+        && d.statut == 'ouvert'
+        && d.get('reponse', '') == ''
+        && d.createdAt == request.time
+        && d.get('updatedAt', request.time) == request.time;
+    }
+
+    match /tickets/{id} {
+      allow get: if true;                       // suivi avec le code (ID aléatoire non devinable)
+      allow list: if isAdmin();                 // personne d'autre ne peut lister les signalements
+      allow create: if isAdmin() || validPublicTicket();
+      allow update, delete: if isAdmin();
+    }
+
+    match /parc/{id}      { allow read, write: if isAdmin(); }
+    match /journal/{id}   { allow read, write: if isAdmin(); }
+    match /chantiers/{id} { allow read, write: if isAdmin(); }
+
+    // La liste des admins se gère uniquement depuis la console Firebase.
+    match /admins/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
