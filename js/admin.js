@@ -217,6 +217,7 @@ function importParc(){
    <input type="file" accept=".csv,.txt,text/csv" id="impfile" style="margin-bottom:8px">
    <div class="f full"><textarea name="csv" style="min-height:200px" class="mono" placeholder="nom;salle;type;modele;os&#10;s101-p01;101;PC;Dell OptiPlex 7010;Windows 11"></textarea></div>
    <label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px"><input type="checkbox" name="merge" checked> Mettre à jour les équipements déjà connus (même nom) sans effacer leurs notes</label>
+   <label style="display:flex;gap:8px;align-items:center;margin-top:6px;font-size:13px;color:var(--red)"><input type="checkbox" name="replace"> Remplacer tout le parc : supprimer les équipements qui ne sont pas dans ce fichier</label>
    <div id="imp" class="tiny" style="margin-top:8px"></div>`,
   async (d,f)=>{
     const lines=d.csv.split(/\r?\n/).filter(l=>l.trim());if(!lines.length)return false;
@@ -226,7 +227,7 @@ function importParc(){
     const alias={nom:"nom",name:"nom",hostname:"nom",machine:"nom",poste:"nom",ordinateur:"nom",salle:"salle",lieu:"salle",localisation:"salle",room:"salle",type:"type",modele:"modele",model:"modele",os:"os",osname:"os",systeme:"os",etat:"etat",serie:"serie",serial:"serie",ssn:"serie",numerodeserie:"serie",ip:"ip",ipaddr:"ip",adresseip:"ip",notes:"notes",commentaire:"notes"};
     let cols=["nom","salle","type","modele","os","etat"],rows=lines.map(split);
     const h=rows[0].map(c=>alias[norm(c)]);if(h.filter(Boolean).length>=2&&h.includes("nom")){cols=h;rows=rows.slice(1)}
-    const osN=v=>{v=(v||"").toLowerCase();return/11/.test(v)&&/win/.test(v)?"Windows 11":/10/.test(v)&&/win/.test(v)?"Windows 10":/linux|ubuntu|debian/.test(v)?"Linux":v?"Autre":"—"};
+    const osN=v=>{v=(v||"").trim().toLowerCase();if(!v||v==="—"||v==="-"||v==="?")return"—";return/11/.test(v)&&/win/.test(v)?"Windows 11":/10/.test(v)&&/win/.test(v)?"Windows 10":/linux|ubuntu|debian/.test(v)?"Linux":v?"Autre":"—"};
     const etN=v=>{v=norm(v||"");return v.startsWith("pan")?"panne":v.startsWith("hs")||v.startsWith("hors")?"hs":v.startsWith("sur")?"surv":"ok"};
     const typN=v=>{if(!v)return"PC";const m=TYPES.find(t=>norm(t).startsWith(norm(v).slice(0,4)));return m||v};
     const items=rows.map(r=>{const o={};cols.forEach((c,i)=>{if(c&&r[i]!=null)o[c]=r[i]});return o}).filter(o=>o.nom);
@@ -238,8 +239,14 @@ function importParc(){
           batch.set(ref("parc",id),{nom:o.nom,salle:o.salle??ex?.salle??"",type:o.type?typN(o.type):ex?.type||"PC",modele:o.modele??ex?.modele??"",os:o.os?osN(o.os):ex?.os||"—",etat:o.etat?etN(o.etat):ex?.etat||"ok",serie:o.serie??ex?.serie??"",ip:o.ip??ex?.ip??"",notes:o.notes??ex?.notes??"",updatedAt:serverTimestamp()});n++}
         await batch.commit();st.textContent=`Import… ${Math.min(i+400,items.length)}/${items.length}`;
       }
+      if(d.replace){
+        const garder=new Set(items.map(o=>slug(o.nom)));const suppr=S.parc.filter(p=>!garder.has(p.id));
+        if(suppr.length&&!f.dataset.ok){f.dataset.ok=1;st.innerHTML=`<b style="color:var(--red)">${n} équipements importés. ${suppr.length} autres vont être SUPPRIMÉS.</b> Clique encore sur Enregistrer pour confirmer.`;return false}
+        for(let i=0;i<suppr.length;i+=400){const b=writeBatch(db);for(const p of suppr.slice(i,i+400))b.delete(ref("parc",p.id));await b.commit()}
+        if(suppr.length)toast(`${n} importé(s), ${suppr.length} supprimé(s)`);
+      }
     }catch(e){console.error(e);st.textContent=errMsg(e);return false}
-    toast(`${n} équipement(s) importé(s)`);return true},{wide:true});
+    if(!d.replace)toast(`${n} équipement(s) importé(s)`);return true},{wide:true});
   form.querySelector("#impfile").addEventListener("change",async e=>{const file=e.target.files[0];if(!file)return;const buf=await file.arrayBuffer();let txt=new TextDecoder("utf-8").decode(buf);if(txt.includes("�"))txt=new TextDecoder("windows-1252").decode(buf);form.querySelector('[name=csv]').value=txt.replace(/^﻿/,"")});
 }
 
