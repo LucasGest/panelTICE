@@ -111,8 +111,8 @@ function ticketsView(){const f=S.f.tickets;return head("Signalements","Pannes re
 function chantiersView(){
   const po={haute:0,normale:1,basse:2};
   const cols=Object.entries(CSTAT).map(([k,v])=>{const items=S.chantiers.filter(c=>(c.statut||"a_faire")===k).sort((a,b)=>(po[a.priorite]??1)-(po[b.priorite]??1));
-   return `<div class="col"><h4>${v[0]}<span>${items.length}</span></h4>${items.map(c=>{const p=prog(c);return `<div class="ch" data-a="chantier" data-id="${c.id}"><div class="t">${esc(c.titre)}</div>${c.description?`<div class="tiny" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(c.description)}</div>`:""}<div class="meta">${pill(PRIO,c.priorite)}${c.echeance?`<span class="pill">${fmtD(c.echeance)}</span>`:""}${c.interlocuteur?`<span class="pill">${esc(c.interlocuteur)}</span>`:""}</div>${p.n?`<div class="bar"><i style="width:${p.pct}%"></i></div><div class="tiny" style="margin-top:3px">${p.d}/${p.n} étapes</div>`:""}</div>`}).join("")}</div>`}).join("");
-  return head("Chantiers & tâches","Projets de fond sur le parc",`<button class="btn primary" data-a="newChantier">+ Chantier</button>`)+(S.chantiers.length?`<div class="kanban">${cols}</div>`:`<div class="empty">Aucun chantier.<br><br><button class="btn primary" data-a="newChantier">+ Créer un chantier</button></div>`);
+   return `<div class="col" data-col="${k}"><h4>${v[0]}<span>${items.length}</span></h4>${items.map(c=>{const p=prog(c);return `<div class="ch" draggable="true" data-a="chantier" data-id="${c.id}"><div class="t">${esc(c.titre)}</div>${c.description?`<div class="tiny" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${esc(c.description)}</div>`:""}<div class="meta">${pill(PRIO,c.priorite)}${c.echeance?`<span class="pill">${fmtD(c.echeance)}</span>`:""}${c.interlocuteur?`<span class="pill">${esc(c.interlocuteur)}</span>`:""}</div>${p.n?`<div class="bar"><i style="width:${p.pct}%"></i></div><div class="tiny" style="margin-top:3px">${p.d}/${p.n} étapes</div>`:""}</div>`}).join("")}</div>`}).join("");
+  return head("Chantiers & tâches","Glisse une carte dans une autre colonne pour changer son statut",`<button class="btn primary" data-a="newChantier">+ Chantier</button>`)+(S.chantiers.length?`<div class="kanban">${cols}</div>`:`<div class="empty">Aucun chantier.<br><br><button class="btn primary" data-a="newChantier">+ Créer un chantier</button></div>`);
 }
 
 /* ---------- Fenêtres d'édition ---------- */
@@ -245,6 +245,21 @@ async function seed(){
   for(const [c,docs] of Object.entries(SEED))for(const [id,data] of Object.entries(docs))batch.set(ref(c,id),{...data,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   await write(()=>batch.commit(),"Données de départ chargées");
 }
+
+/* ---------- Glisser-déposer des chantiers (kanban) ---------- */
+let dragId=null;
+document.addEventListener("dragstart",e=>{const card=e.target.closest&&e.target.closest(".ch[draggable]");if(!card)return;dragId=card.dataset.id;card.classList.add("dragging");e.dataTransfer.effectAllowed="move";try{e.dataTransfer.setData("text/plain",dragId)}catch(_){}});
+document.addEventListener("dragend",()=>{dragId=null;document.querySelectorAll(".ch.dragging").forEach(x=>x.classList.remove("dragging"));document.querySelectorAll(".col.over").forEach(x=>x.classList.remove("over"))});
+document.addEventListener("dragover",e=>{if(!dragId)return;const col=e.target.closest&&e.target.closest(".col[data-col]");if(!col)return;e.preventDefault();e.dataTransfer.dropEffect="move";document.querySelectorAll(".col.over").forEach(x=>x!==col&&x.classList.remove("over"));col.classList.add("over")});
+document.addEventListener("dragleave",e=>{const col=e.target.closest&&e.target.closest(".col[data-col]");if(col&&!col.contains(e.relatedTarget))col.classList.remove("over")});
+document.addEventListener("drop",async e=>{
+  const col=e.target.closest&&e.target.closest(".col[data-col]");if(!col||!dragId)return;e.preventDefault();
+  const id=dragId,statut=col.dataset.col,c=S.chantiers.find(x=>x.id===id);dragId=null;
+  col.classList.remove("over");if(!c||c.statut===statut)return render();
+  const avant=c.statut;c.statut=statut;render(); // affichage immédiat
+  const ok=await write(()=>updateDoc(ref("chantiers",id),{statut,updatedAt:serverTimestamp()}),`« ${c.titre} » → ${CSTAT[statut][0]}`);
+  if(!ok){c.statut=avant;render()}
+});
 
 /* ---------- Événements ---------- */
 document.addEventListener("click",e=>{
