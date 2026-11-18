@@ -1,5 +1,5 @@
 // Constantes et utilitaires partagés
-export const TYPES=["PC","Portable","Imprimante","Vidéoprojecteur","TBI / ENI","Switch / réseau","Borne Wi-Fi","Serveur","Autre"];
+export const TYPES=["PC","Portable","Tablette","Imprimante","Vidéoprojecteur","TBI / ENI","Switch / réseau","Borne Wi-Fi","Serveur","Autre"];
 export const OS=["Windows 11","Windows 10","Linux","Autre","—"];
 export const ETATS={ok:["OK","p-green"],surv:["À surveiller","p-amber"],panne:["En panne","p-red"],hs:["Hors service",""]};
 export const TCAT=["Le PC ne démarre pas","Réseau / Internet","Session / mot de passe","Imprimante / copieur","Vidéoprojecteur / TBI","Logiciel","Son / périphérique","Autre"];
