@@ -15,7 +15,8 @@ const slug=s=>String(s).trim().toLowerCase().replace(/[^a-z0-9_\-.~]/g,"-").repl
 const salles=()=>[...new Set([...S.parc.map(p=>p.salle),...S.tickets.map(t=>t.salle)].filter(Boolean))].sort((a,b)=>a.localeCompare(b,"fr",{numeric:true}));
 function errMsg(e){const c=e&&e.code;if(c==="permission-denied")return"Action refusée : ce compte n'est pas administrateur.";if(c==="resource-exhausted")return"Quota Firebase atteint, réessaie plus tard.";if(c==="unavailable")return"Hors ligne : la modification sera envoyée au retour du réseau.";return"Échec de l'enregistrement, réessaie."}
 async function write(fn,okMsg){try{await fn();if(okMsg)toast(okMsg);return true}catch(e){console.error(e);toast(errMsg(e));return false}}
-const csvCell=v=>{v=String(v??"");return /[;"\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};
+// Neutralise les formules (=, +, -, @) venant de saisies publiques : protection contre l'injection CSV dans Excel
+const csvCell=v=>{v=String(v??"");if(/^[=+\-@\t\r]/.test(v))v="'"+v;return /[;"\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v};
 function download(name,text,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 function csv(name,rows,cols){download(`${name}-${today()}.csv`,"﻿"+[cols.map(c=>c[1]).join(";"),...rows.map(r=>cols.map(c=>csvCell(r[c[0]])).join(";"))].join("\n"),"text/csv;charset=utf-8");toast(`${rows.length} lignes exportées`)}
 function backup(){const data={exportedAt:new Date().toISOString()};for(const k of ["parc","journal","tickets","chantiers"])data[k]=S[k];download(`sauvegarde-panel-tice-${today()}.json`,JSON.stringify(data,null,2),"application/json");toast("Sauvegarde téléchargée")}
