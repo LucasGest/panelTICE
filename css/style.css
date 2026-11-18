@@ -95,7 +95,8 @@ h1{font-size:24px;letter-spacing:-.02em;margin:0}
 .f input:focus,.f select:focus,.f textarea:focus,.filters input:focus,.filters select:focus{outline:2px solid color-mix(in srgb,var(--accent) 50%,transparent);outline-offset:0;border-color:var(--accent)}
 .mfoot{display:flex;justify-content:space-between;gap:8px;margin-top:20px}
 .task{display:flex;gap:8px;align-items:center;padding:4px 0}
-.task input[type=text]{flex:1;border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:6px}
+.task input[type=checkbox]{width:auto;flex:none;margin:0}
+.task input[type=text]{flex:1;min-width:0;width:auto;border:1px solid transparent;background:transparent;padding:4px 6px;border-radius:6px}
 .task input[type=text]:hover,.task input[type=text]:focus{border-color:var(--line);background:var(--bg)}
 .task.done input[type=text]{text-decoration:line-through;color:var(--ink3)}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:9px;font-weight:500;z-index:60;box-shadow:0 8px 30px #0003}
