@@ -194,7 +194,7 @@ function editChantier(c={}){
    <div class="f"><label>Échéance</label><input type="date" name="echeance" value="${esc(c.echeance)}"></div>
    <div class="f"><label>Interlocuteur</label><input name="interlocuteur" value="${esc(c.interlocuteur)}" placeholder="ex. Iris Technology, DSIN"></div>
    <div class="f full"><label>Description / notes</label><textarea name="description">${esc(c.description)}</textarea></div>
-   <div class="f full"><label>Étapes</label><div id="tl">${tl()}</div><div class="row" style="margin-top:6px"><input id="newtask" placeholder="Ajouter une étape puis Entrée" style="flex:1;border:1px solid var(--line);background:var(--bg);padding:7px 10px;border-radius:8px"><button type="button" class="btn sm" id="addtask">Ajouter</button></div></div></div>`,
+   <div class="f full"><label>Étapes</label><div id="tl">${tl()}</div><div class="row" style="margin-top:6px"><input id="newtask" placeholder="Ajouter une étape puis Entrée (ou coller une liste)" style="flex:1;border:1px solid var(--line);background:var(--bg);padding:7px 10px;border-radius:8px"><button type="button" class="btn sm" id="addtask">Ajouter</button></div></div></div>`,
   async d=>{const data={titre:d.titre.trim(),statut:d.statut,priorite:d.priorite,echeance:d.echeance,interlocuteur:d.interlocuteur.trim(),description:d.description.trim(),taches:taches.filter(x=>x.t.trim()),updatedAt:serverTimestamp()};
     if(c.id)return write(()=>updateDoc(ref("chantiers",c.id),data),"Chantier enregistré");
     return write(()=>addDoc(collection(db,"chantiers"),{...data,createdAt:serverTimestamp()}),"Chantier créé")},
@@ -203,6 +203,9 @@ function editChantier(c={}){
   const add=()=>{const v=inp.value.trim();if(!v)return;taches.push({id:Math.random().toString(36).slice(2,9),t:v,done:false});inp.value="";box.innerHTML=tl();inp.focus()};
   form.querySelector("#addtask").onclick=add;
   inp.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();add()}});
+  // Coller une liste (une étape par ligne) : puces et numéros retirés automatiquement
+  inp.addEventListener("paste",e=>{const txt=(e.clipboardData||window.clipboardData)?.getData("text")||"";const lignes=txt.split(/\r?\n/).map(l=>l.replace(/^\s*(?:[-*•▪◦]|\d+[.)]|\[[ xX]?\])\s*/,"").trim()).filter(Boolean);
+    if(lignes.length<2)return;e.preventDefault();for(const t of lignes)taches.push({id:Math.random().toString(36).slice(2,9),t,done:false});inp.value="";box.innerHTML=tl();toast(`${lignes.length} étapes ajoutées`)});
   box.addEventListener("change",e=>{const i=e.target.dataset.ti;if(i!=null){taches[i].done=e.target.checked;box.innerHTML=tl()}});
   box.addEventListener("input",e=>{const i=e.target.dataset.tt;if(i!=null)taches[i].t=e.target.value});
   box.addEventListener("click",e=>{const i=e.target.dataset.tx;if(i!=null){taches.splice(i,1);box.innerHTML=tl()}});
